@@ -1,6 +1,7 @@
 (ns mocko.core
   "Mocko is a simple mocking library."
   (:require [clojure.data :as data]
+            [clojure.set :as set]
             [clojure.string :as string]
             [clojure.test :as test]))
 
@@ -39,6 +40,10 @@
   (when-not @context
     (throw (IllegalStateException.
             "can't verify mocks outside of with-mocks")))
+  (when-let [missing (seq (set/difference (set ref-fns)
+                                          (set (keys (:mocks @context)))))]
+    (throw (IllegalArgumentException. (str "Some functions not mocks: "
+                                           missing))))
   (let [called (filter (set ref-fns) (map first (:calls @context)))]
     (when-not (= ref-fns called)
       (test/do-report {:type :fail

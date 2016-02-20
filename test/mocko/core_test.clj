@@ -24,6 +24,11 @@
     (is (thrown? IllegalStateException
                  (verify-call-order #'example/unary))))
 
+  (testing "Verifying an unmocked function"
+    (is (thrown? IllegalArgumentException
+                 (with-mocks
+                   (verify-call-order #'example/unary)))))
+
   (testing "Basic mocking"
     (with-mocks
       (mock! #'example/nullary {[] "yay"})
@@ -64,7 +69,8 @@
         #(with-mocks
            (mock! #'example/nullary :never)
            (example/nullary)))
-      (is (= {:type :fail, :message "Unexpected call of #'mocko.example/nullary"}
+      (is (= {:type :fail
+              :message "Unexpected call of #'mocko.example/nullary"}
              @result))))
 
   (testing "Out-of-order mocks"
