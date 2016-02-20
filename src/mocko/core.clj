@@ -49,22 +49,26 @@
 (defn- mock-fn
   [ref-fn values]
   (fn [& args]
-    (let [args (or args [])] ; handle empty args
-      (swap! context update-in [:calls] conj [ref-fn args])
-      (if (fn? values)
-        (apply values args)
-        (if (contains? values args)
-          (let [ret (get values args)]
-            (if (fn? ret) (apply ret args) ret))
-          (test/do-report {:type :fail
-                           :expected values
-                           :actual (vec args)
-                           :message (str "Unexpected arguments for "
-                                         ref-fn)}))))))
+    (if (= values :never)
+      (test/do-report {:type :fail
+                       :message (str "Unexpected call of " ref-fn)})
+      (let [args (or args [])]           ; handle empty args
+        (swap! context update-in [:calls] conj [ref-fn args])
+        (if (fn? values)
+          (apply values args)
+          (if (contains? values args)
+            (let [ret (get values args)]
+              (if (fn? ret) (apply ret args) ret))
+            (test/do-report {:type :fail
+                             :expected values
+                             :actual (vec args)
+                             :message (str "Unexpected arguments for "
+                                           ref-fn)})))))))
 
 (defn mock!
   "Mocks the given function. Takes either a map of function arguments to
-  function return values or an actual function."
+  function return values, an actual function, or `:never` if the function should
+  never be called.."
   [ref-fn values]
   (when-not @context
     (throw (IllegalStateException. "can't mock outside of with-mocks")))
@@ -73,5 +77,6 @@
   (swap! context assoc-in [:originals ref-fn] @ref-fn)
 
   (let [m (mock-fn ref-fn values)]
-    (swap! context assoc-in [:mocks ref-fn] m)
+    (when-not (= values :never)
+      (swap! context assoc-in [:mocks ref-fn] m))
     (alter-var-root ref-fn (constantly m))))

@@ -11,3 +11,7 @@
 (defn binary
   [a b]
   (str "binary " a " " b))
+
+(defn trinary
+  [a b c]
+  (str "trinary " a " " b " " c))

@@ -32,6 +32,7 @@
                               [:c] "whee"})
       (mock! #'example/binary (fn [a b]
                                 (str "mocked " a " " b)))
+      (mock! #'example/trinary :never)
       (is (= "yay" (example/nullary)))
       (is (= "woo" (example/unary :a)))
       (is (= "wahoo" (example/unary :b)))
@@ -55,6 +56,15 @@
       (is (= {:type :fail
               :expected #{#'mocko.example/nullary}
               :message "Some mocks were not called."}
+             @result))))
+
+  (testing "Called mocks"
+    (let [result (atom nil)]
+      (with-redefs-fn {#'test/do-report (fn [m] (reset! result m))}
+        #(with-mocks
+           (mock! #'example/nullary :never)
+           (example/nullary)))
+      (is (= {:type :fail, :message "Unexpected call of #'mocko.example/nullary"}
              @result))))
 
   (testing "Out-of-order mocks"
