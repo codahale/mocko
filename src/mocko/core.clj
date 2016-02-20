@@ -5,45 +5,45 @@
             [clojure.string :as string]
             [clojure.test :as test]))
 
-(def ^:private context (atom nil))
+(def ^:private context
+  "The ugly bit of globally mutable donkness."
+  (atom nil))
 
 (defn- was-called?
-  [[ref-fn values]]
+  "Whether or not the given function was called with the given values."
+  [[fn-var values]]
   (if values
-    (some #{[ref-fn values]} (:calls @context))
-    (some #(= (first %) ref-fn) (:calls @context))))
+    (some #{[fn-var values]} (:calls @context))
+    (some #(= (first %) fn-var) (:calls @context))))
 
 (defn with-mocks-fn
   "Calls the given function inside of a mock context."
   [body-fn]
+  (when @context
+    (throw (IllegalStateException. "Cannot nest mocks")))
   (try
-    (when @context
-      (throw (IllegalStateException. "Cannot nest mocks")))
-
     ;; create new context
     (reset! context {:originals {}
                      :mocks {}
                      :calls []})
-
+    ;; call the body
     (body-fn)
-
     ;; check that all mocks were called
     (when-let [uncalled (->> (:mocks @context)
-                             (mapcat (fn [[ref-fn values]]
+                             (mapcat (fn [[fn-var values]]
                                        (if (fn? values)
-                                         [[ref-fn]]
-                                         (map #(vector ref-fn %)
+                                         [[fn-var]]
+                                         (map #(vector fn-var %)
                                               (keys values)))))
                              (remove was-called?)
                              seq)]
       (test/do-report {:type :fail
                        :expected (vec (sort uncalled))
                        :message "Some mocks were not called."}))
-
     (finally
       ;; restore all originals
-      (run! (fn [[ref-fn fn]]
-              (alter-var-root ref-fn (constantly fn)))
+      (run! (fn [[fn-var fn]]
+              (alter-var-root fn-var (constantly fn)))
             (:originals @context))
       ;; wipe context
       (reset! context nil))))
@@ -55,29 +55,30 @@
 
 (defn verify-call-order
   "Verifies the given mocked functions were called in the given order."
-  [& ref-fns]
+  [& fn-vars]
   (when-not @context
     (throw (IllegalStateException.
             "can't verify mocks outside of with-mocks")))
-  (when-let [missing (seq (set/difference (set ref-fns)
+  (when-let [missing (seq (set/difference (set fn-vars)
                                           (set (keys (:mocks @context)))))]
     (throw (IllegalArgumentException. (str "Some functions not mocks: "
                                            missing))))
-  (let [called (filter (set ref-fns) (map first (:calls @context)))]
-    (when-not (= ref-fns called)
+  (let [called (filter (set fn-vars) (map first (:calls @context)))]
+    (when-not (= fn-vars called)
       (test/do-report {:type :fail
-                       :expected (vec ref-fns)
+                       :expected (vec fn-vars)
                        :actual (vec called)
                        :message "Mocks were called out of order."}))))
 
 (defn- mock-fn
-  [ref-fn values]
+  "Returns the mock function for the given function and values."
+  [fn-var values]
   (fn [& args]
     (if (= values :never)
       (test/do-report {:type :fail
-                       :message (str "Unexpected call of " ref-fn)})
+                       :message (str "Unexpected call of " fn-var)})
       (let [args (or args [])]           ; handle empty args
-        (swap! context update-in [:calls] conj [ref-fn args])
+        (swap! context update-in [:calls] conj [fn-var args])
         (if (fn? values)
           (apply values args)
           (if (contains? values args)
@@ -86,20 +87,20 @@
                              :expected values
                              :actual (vec args)
                              :message (str "Unexpected arguments for "
-                                           ref-fn)})))))))
+                                           fn-var)})))))))
 
 (defn mock!
   "Mocks the given function. Takes either a map of function arguments to
   function return values, an actual function, or `:never` if the function should
   never be called.."
-  [ref-fn values]
+  [fn-var values]
   (when-not @context
     (throw (IllegalStateException. "can't mock outside of with-mocks")))
 
   ;; save original fn
-  (swap! context assoc-in [:originals ref-fn] @ref-fn)
+  (swap! context assoc-in [:originals fn-var] @fn-var)
 
-  (let [m (mock-fn ref-fn values)]
+  (let [m (mock-fn fn-var values)]
     (when-not (= values :never)
-      (swap! context assoc-in [:mocks ref-fn] values))
-    (alter-var-root ref-fn (constantly m))))
+      (swap! context assoc-in [:mocks fn-var] values))
+    (alter-var-root fn-var (constantly m))))
