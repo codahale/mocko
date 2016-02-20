@@ -7,6 +7,12 @@
 
 (def ^:private context (atom nil))
 
+(defn- was-called?
+  [[ref-fn values]]
+  (if values
+    (some #{[ref-fn values]} (:calls @context))
+    (some #(= (first %) ref-fn) (:calls @context))))
+
 (defn with-mocks-fn
   "Calls the given function inside of a mock context."
   [body-fn]
@@ -18,14 +24,22 @@
     (reset! context {:originals {}
                      :mocks {}
                      :calls []})
+
     (body-fn)
+
     ;; check that all mocks were called
-    (when-let [uncalled (first (data/diff
-                                (set (keys (:mocks @context)))
-                                (set (map first (:calls @context)))))]
+    (when-let [uncalled (->> (:mocks @context)
+                             (mapcat (fn [[ref-fn values]]
+                                       (if (fn? values)
+                                         [[ref-fn]]
+                                         (map #(vector ref-fn %)
+                                              (keys values)))))
+                             (remove was-called?)
+                             seq)]
       (test/do-report {:type :fail
-                       :expected uncalled
+                       :expected (vec (sort uncalled))
                        :message "Some mocks were not called."}))
+
     (finally
       ;; restore all originals
       (run! (fn [[ref-fn fn]]
@@ -87,5 +101,5 @@
 
   (let [m (mock-fn ref-fn values)]
     (when-not (= values :never)
-      (swap! context assoc-in [:mocks ref-fn] m))
+      (swap! context assoc-in [:mocks ref-fn] values))
     (alter-var-root ref-fn (constantly m))))

@@ -54,28 +54,40 @@
                          #'example/unary)))
 
   (testing "Uncalled mocks"
-    (let [result (atom nil)]
-      (with-redefs-fn {#'test/do-report (fn [m] (reset! result m))}
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
         #(with-mocks
            (mock! #'example/nullary {[] "yay"})))
-      (is (= {:type :fail
-              :expected #{#'mocko.example/nullary}
-              :message "Some mocks were not called."}
+      (is (= [{:type :fail
+               :expected [[#'mocko.example/nullary []]]
+               :message "Some mocks were not called."}]
+             @result))))
+
+  (testing "Uncalled multi-mocks"
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+        #(with-mocks
+           (mock! #'example/unary {[:a] "yay"
+                                   [:b] "woo"})
+           (example/unary :a)))
+      (is (= [{:type :fail
+               :expected [[#'mocko.example/unary [:b]]]
+               :message "Some mocks were not called."}]
              @result))))
 
   (testing "Called mocks"
-    (let [result (atom nil)]
-      (with-redefs-fn {#'test/do-report (fn [m] (reset! result m))}
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
         #(with-mocks
            (mock! #'example/nullary :never)
            (example/nullary)))
-      (is (= {:type :fail
-              :message "Unexpected call of #'mocko.example/nullary"}
+      (is (= [{:type :fail
+               :message "Unexpected call of #'mocko.example/nullary"}]
              @result))))
 
   (testing "Out-of-order mocks"
-    (let [result (atom nil)]
-      (with-redefs-fn {#'test/do-report (fn [m] (reset! result m))}
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
         #(with-mocks
            (mock! #'example/nullary {[] "yay"})
            (mock! #'example/unary {[:a] "woo"})
@@ -83,20 +95,23 @@
            (example/nullary)
            (verify-call-order #'example/nullary
                               #'example/unary)))
-      (is (= {:type :fail
-              :expected [#'mocko.example/nullary #'mocko.example/unary]
-              :actual [#'mocko.example/unary #'mocko.example/nullary]
-              :message "Mocks were called out of order."}
+      (is (= [{:type :fail
+               :expected [#'mocko.example/nullary #'mocko.example/unary]
+               :actual [#'mocko.example/unary #'mocko.example/nullary]
+               :message "Mocks were called out of order."}]
              @result))))
 
   (testing "Bad mock args"
-    (let [result (atom nil)]
-      (with-redefs-fn {#'test/do-report (fn [m] (reset! result m))}
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
         #(with-mocks
            (mock! #'example/unary {[:a] "woo"})
            (example/unary :b)))
-      (is (= {:type :fail,
-              :expected {[:a] "woo"},
-              :actual [:b],
-              :message "Unexpected arguments for #'mocko.example/unary"}
+      (is (= [{:type :fail
+               :expected {[:a] "woo"}
+               :actual [:b]
+               :message "Unexpected arguments for #'mocko.example/unary"}
+              {:type :fail
+               :expected [[#'mocko.example/unary [:a]]]
+               :message "Some mocks were not called."}]
              @result)))))
