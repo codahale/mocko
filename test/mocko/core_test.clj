@@ -33,7 +33,7 @@
     (with-mocks
       (mock! #'example/nullary {[] "yay"})
       (mock! #'example/unary {[:a] "woo"
-                              [:b] (fn [_] "wahoo")
+                              [:b] "wahoo"
                               [:c] "whee"})
       (mock! #'example/binary (fn [a b]
                                 (str "mocked " a " " b)))

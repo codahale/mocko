@@ -67,8 +67,7 @@
         (if (fn? values)
           (apply values args)
           (if (contains? values args)
-            (let [ret (get values args)]
-              (if (fn? ret) (apply ret args) ret))
+            (get values args)
             (test/do-report {:type :fail
                              :expected values
                              :actual (vec args)
