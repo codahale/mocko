@@ -5,34 +5,39 @@
             [clojure.string :as string]
             [clojure.test :as test]))
 
-(def context (atom nil))
+(def ^:private context (atom nil))
+
+(defn with-mocks-fn
+  "Calls the given function inside of a mock context."
+  [body-fn]
+  (try
+    (when @context
+      (throw (IllegalStateException. "Cannot nest mocks")))
+
+    ;; create new context
+    (reset! context {:originals {}
+                     :mocks {}
+                     :calls []})
+    (body-fn)
+    ;; check that all mocks were called
+    (when-let [uncalled (first (data/diff
+                                (set (keys (:mocks @context)))
+                                (set (map first (:calls @context)))))]
+      (test/do-report {:type :fail
+                       :expected uncalled
+                       :message "Some mocks were not called."}))
+    (finally
+      ;; restore all originals
+      (run! (fn [[ref-fn fn]]
+              (alter-var-root ref-fn (constantly fn)))
+            (:originals @context))
+      ;; wipe context
+      (reset! context nil))))
 
 (defmacro with-mocks
   "A macro which establishes a lexical scope for mock applicability."
   [& body]
-  `(try
-     (when @context
-       (throw (IllegalStateException. "Cannot nest mocks")))
-
-     ;; create new context
-     (reset! context {:originals {}
-                      :mocks {}
-                      :calls []})
-     ~@body
-     ;; check that all mocks were called
-     (when-let [uncalled# (first (data/diff
-                                  (set (keys (:mocks @context)))
-                                  (set (map first (:calls @context)))))]
-       (test/do-report {:type :fail
-                        :expected uncalled#
-                        :message "Some mocks were not called."}))
-     (finally
-       ;; restore all originals
-       (run! (fn [[ref-fn# fn#]]
-               (alter-var-root ref-fn# (constantly fn#)))
-             (:originals @context))
-       ;; wipe context
-       (reset! context nil))))
+  `(with-mocks-fn (fn [] ~@body)))
 
 (defn verify-call-order
   "Verifies the given mocked functions were called in the given order."
