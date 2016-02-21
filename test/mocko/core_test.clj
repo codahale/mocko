@@ -114,4 +114,14 @@
               {:type :fail
                :expected [[#'mocko.example/unary [:a]]]
                :message "Some mocks were not called."}]
-             @result)))))
+             @result))))
+
+  (testing "Sequential mocks"
+    (with-mocks
+      (mock! #'example/unary {[:a] "woo"})
+      (is (= "woo" (example/unary :a)))
+
+      (mock! #'example/unary {[:a] "yay"})
+      (is (= "yay" (example/unary :a))))
+
+    (is (= "unary :c" (example/unary :c)))))

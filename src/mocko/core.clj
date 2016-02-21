@@ -98,7 +98,8 @@
     (throw (IllegalStateException. "can't mock outside of with-mocks")))
 
   ;; save original fn
-  (swap! context assoc-in [:originals fn-var] @fn-var)
+  (when-not (contains? (:originals @context) fn-var)
+    (swap! context assoc-in [:originals fn-var] @fn-var))
 
   (let [m (mock-fn fn-var values)]
     (when-not (= values :never)
