@@ -105,3 +105,9 @@
     (when-not (= values :never)
       (swap! context assoc-in [:mocks fn-var] values))
     (alter-var-root fn-var (constantly m))))
+
+(defn stub!
+  [fn-var value]
+  (when-not (contains? (:originals @context) fn-var)
+    (swap! context assoc-in [:originals fn-var] @fn-var))
+  (alter-var-root fn-var (constantly value)))

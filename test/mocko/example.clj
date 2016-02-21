@@ -1,5 +1,7 @@
 (ns mocko.example)
 
+(def value 100)
+
 (defn nullary
   []
   "nullary")

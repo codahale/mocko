@@ -124,4 +124,11 @@
       (mock! #'example/unary {[:a] "yay"})
       (is (= "yay" (example/unary :a))))
 
-    (is (= "unary :c" (example/unary :c)))))
+    (is (= "unary :c" (example/unary :c))))
+
+  (testing "Stubbing"
+    (is (= 100 example/value))
+    (with-mocks
+      (stub! #'example/value 200)
+      (is (= 200 example/value)))
+    (is (= 100 example/value))))
