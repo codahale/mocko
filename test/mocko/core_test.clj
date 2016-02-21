@@ -131,7 +131,7 @@
     (with-mocks
       (stub! #'example/value 200)
       (is (= 200 example/value)))
-    (is (= 100 example/value))    )
+    (is (= 100 example/value)))
 
   (testing "Sequential stubs"
     (is (= 100 example/value))
@@ -140,9 +140,7 @@
       (is (= 200 example/value))
       (stub! #'example/value 300)
       (is (= 300 example/value)))
-    (is (= 100 example/value))
-
-    (is (= "unary :c" (example/unary :c))))
+    (is (= 100 example/value)))
 
   (testing "Stubbing outside a context"
     (is (thrown? IllegalStateException
