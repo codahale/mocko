@@ -107,7 +107,13 @@
     (alter-var-root fn-var (constantly m))))
 
 (defn stub!
+  "Stubs the given function or var, which is to say it replaces it without
+  expectation of being called."
   [fn-var value]
+  (when-not @context
+    (throw (IllegalStateException. "can't mock outside of with-mocks")))
+
   (when-not (contains? (:originals @context) fn-var)
     (swap! context assoc-in [:originals fn-var] @fn-var))
+
   (alter-var-root fn-var (constantly value)))
