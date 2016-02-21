@@ -111,7 +111,7 @@
   expectation of being called."
   [fn-var value]
   (when-not @context
-    (throw (IllegalStateException. "can't mock outside of with-mocks")))
+    (throw (IllegalStateException. "can't stub outside of with-mocks")))
 
   (when-not (contains? (:originals @context) fn-var)
     (swap! context assoc-in [:originals fn-var] @fn-var))
