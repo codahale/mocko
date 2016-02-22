@@ -1,4 +1,4 @@
-(defproject mocko "0.1.1-SNAPSHOT"
+(defproject mocko "0.1.1"
   :description "A simple mocking library."
   :url "https://github.com/codahale/mocko"
   :license {:name "Eclipse Public License"
