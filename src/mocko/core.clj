@@ -38,7 +38,7 @@
                              (remove was-called?)
                              seq)]
       (test/do-report {:type :fail
-                       :expected (vec (sort uncalled))
+                       :expected (vec uncalled)
                        :message "Some mocks were not called."}))
     (finally
       ;; restore all originals
