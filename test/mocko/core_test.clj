@@ -106,7 +106,9 @@
       (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
         #(with-mocks
            (mock! #'example/unary {[:a] "woo"})
-           (example/unary :b)))
+           (try
+             (example/unary :b)
+             (catch IllegalArgumentException _))))
       (is (= [{:type :fail
                :expected {[:a] "woo"}
                :actual [:b]

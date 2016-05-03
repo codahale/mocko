@@ -83,11 +83,14 @@
           (apply values args)
           (if (contains? values args)
             (get values args)
-            (test/do-report {:type :fail
-                             :expected values
-                             :actual (vec args)
-                             :message (str "Unexpected arguments for "
-                                           fn-var)})))))))
+            (do
+              (test/do-report {:type :fail
+                               :expected values
+                               :actual (vec args)
+                               :message (str "Unexpected arguments for "
+                                             fn-var)})
+              (throw (IllegalArgumentException. (str "Unexpected arguments for "
+                                                     fn-var))))))))))
 
 (defn mock!
   "Mocks the given function. Takes either a map of function arguments to
