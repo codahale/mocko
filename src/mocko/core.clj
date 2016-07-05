@@ -1,6 +1,7 @@
 (ns mocko.core
   "Mocko is a simple mocking library."
-  (:require [clojure.data :as data]
+  (:require [clojure.math.combinatorics :refer [combinations]]
+            [clojure.data :as data]
             [clojure.set :as set]
             [clojure.string :as string]
             [clojure.test :as test]))
@@ -63,12 +64,30 @@
                                           (set (keys (:mocks @context)))))]
     (throw (IllegalArgumentException. (str "Some functions not mocks: "
                                            missing))))
+
   (let [called (filter (set fn-vars) (map first (:calls @context)))]
     (when-not (= fn-vars called)
       (test/do-report {:type :fail
                        :expected (vec fn-vars)
                        :actual (vec called)
                        :message "Mocks were called out of order."}))))
+
+(defn- match-arglist
+  [passed-args [argspec _]]
+  (let [test-args (map (fn [p s] (if (= s ::any) ::any p)) passed-args argspec)]
+    (when (= test-args argspec)
+      argspec)))
+
+(defn- find-argspec-match
+  [fn-values-map passed-args]
+  (let [match (partial match-arglist passed-args)]
+    (if-let [matching-argspec (first (filter some? (map match fn-values-map)))]
+      [matching-argspec (get fn-values-map matching-argspec)]
+      [nil ::not-found])))
+
+(defn- record-call
+  [fn-var args]
+  (swap! context update-in [:calls] conj [fn-var args]))
 
 (defn- mock-fn
   "Returns the mock function for the given function and values."
@@ -78,19 +97,43 @@
       (test/do-report {:type :fail
                        :message (str "Unexpected call of " fn-var)})
       (let [args (or args [])]           ; handle empty args
-        (swap! context update-in [:calls] conj [fn-var args])
         (if (fn? values)
-          (apply values args)
-          (if (contains? values args)
-            (get values args)
-            (do
-              (test/do-report {:type :fail
-                               :expected values
-                               :actual (vec args)
-                               :message (str "Unexpected arguments for "
-                                             fn-var)})
-              (throw (IllegalArgumentException. (str "Unexpected arguments for "
-                                                     fn-var))))))))))
+          (do
+            (record-call fn-var args)
+            (apply values args))
+
+          (let [[argspec-match value] (find-argspec-match values args)]
+            (if (= ::not-found value)
+              (do
+                (record-call fn-var args)
+                (test/do-report {:type :fail
+                                 :expected values
+                                 :actual (vec args)
+                                 :message (str "Unexpected arguments for "
+                                               fn-var)})
+                (throw (IllegalArgumentException. (str "Unexpected arguments for "
+                                                       fn-var))))
+
+              (do
+                (record-call fn-var argspec-match)
+                value))))))))
+
+(defn- ambiguous?
+  [[argspec1 argspec2]]
+  (not
+   (boolean
+    (:differ (set (map (fn [x y] (if (or (= x y) ((set [x y]) ::any))
+                                   :overlap
+                                   :differ))
+                       argspec1 argspec2))))))
+
+(defn- assert-unambiguous-argspecs!
+  [values]
+  (let [ambiguous-argspecs (filter ambiguous? (combinations (keys values) 2))]
+    (when (seq ambiguous-argspecs)
+      (throw (IllegalArgumentException.
+              (str "The argument lists provided are ambiguous: "
+                   ambiguous-argspecs))))))
 
 (defn mock!
   "Mocks the given function. Takes either a map of function arguments to
@@ -99,6 +142,9 @@
   [fn-var values]
   (when-not @context
     (throw (IllegalStateException. "can't mock outside of with-mocks")))
+
+  (when (map? values)
+    (assert-unambiguous-argspecs! values))
 
   ;; save original fn
   (when-not (contains? (:originals @context) fn-var)

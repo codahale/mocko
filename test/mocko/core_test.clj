@@ -146,4 +146,48 @@
 
   (testing "Stubbing outside a context"
     (is (thrown? IllegalStateException
-                 (stub! #'example/unary "woo")))))
+                 (stub! #'example/unary "woo"))))
+
+  (testing "any args"
+    (with-mocks
+      (mock! #'example/unary {[:mocko.core/any] "x"})
+      (mock! #'example/trinary {[:a :b :mocko.core/any] nil
+                                [:mocko.core/any :x :mocko.core/any] 1})
+      (is (= "x" (example/unary 1)))
+      (is (= "x" (example/unary :foo)))
+      (is (= 1 (example/trinary 1 :x 3)))
+      (is (nil? (example/trinary :a :b :c)))))
+
+  (testing "unexpected calls with any args"
+    (let [result (atom [])]
+      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+        #(with-mocks
+           (mock! #'example/binary {[:a :mocko.core/any] "woo"})
+           (try
+             (example/binary :b :x)
+             (catch IllegalArgumentException _))))
+      (is (= [{:type :fail
+               :expected {[:a :mocko.core/any] "woo"}
+               :actual [:b :x]
+               :message "Unexpected arguments for #'mocko.example/binary"}
+              {:type :fail
+               :expected [[#'mocko.example/binary [:a :mocko.core/any]]]
+               :message "Some mocks were not called."}]
+             @result))))
+
+  (testing "forces unambiguous args"
+    (is (thrown? IllegalArgumentException
+                 (with-mocks
+                   (mock! #'example/binary {[:a :mocko.core/any] nil
+                                            [:mocko.core/any :x] 1}))))
+
+    (is (thrown? IllegalArgumentException
+                 (with-mocks
+                   (mock! #'example/binary {[:a :b] 1
+                                            [:a :mocko.core/any] 2}))))
+
+    (is (thrown? IllegalArgumentException
+                 (with-mocks
+                   (mock! #'example/binary
+                          {[:a :b] 1
+                           [:mocko.core/any :mocko.core/any] 2}))))))
