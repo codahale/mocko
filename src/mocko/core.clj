@@ -136,10 +136,10 @@
 (defn- assert-unambiguous-argspecs!
   [values]
   (let [ambiguous-argspecs (filter ambiguous? (combinations (keys values) 2))]
-    (when (seq ambiguous-argspecs)
+    (when-let [argspecs (seq ambiguous-argspecs)]
       (throw (IllegalArgumentException.
               (str "The argument lists provided are ambiguous: "
-                   ambiguous-argspecs))))))
+                   argspecs))))))
 
 (defn mock!
   "Mocks the given function. Takes either a map of function arguments to
