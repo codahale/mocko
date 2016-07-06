@@ -75,7 +75,8 @@
 (defn- match-arglist
   [passed-args [argspec _]]
   (let [test-args (map (fn [p s] (if (= s ::any) ::any p)) passed-args argspec)]
-    (when (= test-args argspec)
+    (when (and (= (count passed-args) (count argspec))
+               (= test-args argspec))
       argspec)))
 
 (defn- find-argspec-match
@@ -120,12 +121,17 @@
 
 (defn- ambiguous?
   [[argspec1 argspec2]]
-  (not
-   (boolean
-    (:differ (set (map (fn [x y] (if (or (= x y) ((set [x y]) ::any))
-                                   :overlap
-                                   :differ))
-                       argspec1 argspec2))))))
+  (and
+   (= (count argspec1) (count argspec2))
+   (not
+    (boolean
+     (:differ (set (map (fn [x y]
+                          (if (or (= x y)
+                                  (= x ::any)
+                                  (= y ::any))
+                            :overlap
+                            :differ))
+                        argspec1 argspec2)))))))
 
 (defn- assert-unambiguous-argspecs!
   [values]

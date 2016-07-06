@@ -6,7 +6,8 @@
 (deftest unmocked-behavior-test
   (is (= "nullary" (example/nullary)))
   (is (= "unary :c" (example/unary :c)))
-  (is (= "binary :c :d" (example/binary :c :d))))
+  (is (= "binary :c :d" (example/binary :c :d)))
+  (is (= "variadic (:c :d :e)" (example/variadic :c :d :e))))
 
 (deftest mocked-behavior-test
   (testing "Mocking outside a context"
@@ -175,6 +176,14 @@
                :message "Some mocks were not called."}]
              @result))))
 
+  (testing "handles variadic mocks"
+    (with-mocks
+      (mock! #'example/variadic
+             {["blah"] 1
+              ["blah" "blee"] 2})
+      (is (= 1 (example/variadic "blah")))
+      (is (= 2 (example/variadic "blah" "blee")))))
+
   (testing "forces unambiguous args"
     (is (thrown? IllegalArgumentException
                  (with-mocks
@@ -190,4 +199,5 @@
                  (with-mocks
                    (mock! #'example/binary
                           {[:a :b] 1
-                           [:mocko.core/any :mocko.core/any] 2}))))))
+                           [:a :b :c] 2
+                           [:mocko.core/any :mocko.core/any] 3}))))))

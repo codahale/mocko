@@ -17,3 +17,7 @@
 (defn trinary
   [a b c]
   (str "trinary " a " " b " " c))
+
+(defn variadic
+  [& more]
+  (str "variadic " more))
