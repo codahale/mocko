@@ -55,8 +55,9 @@
                          #'example/unary)))
 
   (testing "Uncalled mocks"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars [result []]
+      (with-redefs-fn {#'test/do-report (fn [m]
+                                          (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/nullary {[] "yay"})))
       (is (= [{:type :fail
@@ -65,8 +66,9 @@
              @result))))
 
   (testing "Uncalled multi-mocks"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars [result []]
+      (with-redefs-fn {#'test/do-report
+                       (fn [m] (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/unary {[:a] "yay"
                                    [:b] "woo"})
@@ -77,8 +79,9 @@
              @result))))
 
   (testing "Called mocks"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars [result []]
+      (with-redefs-fn {#'test/do-report
+                       (fn [m] (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/nullary :never)
            (example/nullary)))
@@ -87,8 +90,9 @@
              @result))))
 
   (testing "Out-of-order mocks"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars [result []]
+      (with-redefs-fn {#'test/do-report
+                       (fn [m] (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/nullary {[] "yay"})
            (mock! #'example/unary {[:a] "woo"})
@@ -103,8 +107,9 @@
              @result))))
 
   (testing "Bad mock args"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars[result []]
+      (with-redefs-fn {#'test/do-report
+                       (fn [m] (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/unary {[:a] "woo"})
            (try
@@ -160,8 +165,9 @@
       (is (nil? (example/trinary :a :b :c)))))
 
   (testing "unexpected calls with any args"
-    (let [result (atom [])]
-      (with-redefs-fn {#'test/do-report (fn [m] (swap! result conj m))}
+    (with-local-vars [result []]
+      (with-redefs-fn {#'test/do-report
+                       (fn [m] (var-set result (conj @result m)))}
         #(with-mocks
            (mock! #'example/binary {[:a :mocko.core/any] "woo"})
            (try
